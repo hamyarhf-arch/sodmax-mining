@@ -7,8 +7,8 @@ console.log('🚀 بارگذاری پیکربندی Supabase...');
 // ==================== تنظیمات پروژه ====================
 const SUPABASE_CONFIG = {
     // تنظیمات اصلی Supabase (آپدیت شده با URL و Key جدید شما)
-    url: 'https://utnqkgbmdjilvbkwjqef.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV0bnFrZ2JtZGppbHZia3dqcWVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5MDM3ODUsImV4cCI6MjA4MTQ3OTc4NX0.-PA0KAaSuQ-ZAJZLdVNe-AafE5fHf8CA5R4uR3TKGDc',
+    url: 'https://moattzdydyiqoftlgtmq.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vYXR0emR5ZHlpcW9mdGxndG1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5ODgzNTAsImV4cCI6MjA4MTU2NDM1MH0.DaTbOXcDxqx5JKZ5LbNvT-k8hYcjgbwK6nEgXz9QRy8',
     
     // تنظیمات دیتابیس
     tables: {
@@ -876,4 +876,5 @@ if (typeof module !== 'undefined' && module.exports) {
 }
 
 console.log('✅ فایل پیکربندی Supabase بارگذاری شد');
+
 console.log('🎮 آماده استفاده در بازی SODmAX Pro');
