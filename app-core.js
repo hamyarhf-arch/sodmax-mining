@@ -1,4 +1,4 @@
-// app-core.js - نسخه اصلاح شده برای کار با Supabase
+// app-core.js - نسخه اصلاح شده
 console.log('🚀 app-core.js با پشتیبانی Supabase بارگذاری شد');
 
 // ==================== توابع اصلی ====================
@@ -180,7 +180,7 @@ async function syncWithSupabase() {
         // اگر کاربر پیدا نشد، ایجاد کن
         if (!user) {
             console.log('👤 کاربر در Supabase پیدا نشد، ایجاد رکورد جدید...');
-            user = await createUserRecord(userData.email, userData.fullName);
+            user = await createUserRecord(userData.email, userData.fullName || userData.email.split('@')[0]);
         }
         
         if (user) {
@@ -276,6 +276,30 @@ window.addEventListener('userRegistered', async function(e) {
     }, 1000);
 });
 
+// ==================== توابع کمکی ====================
+
+// تابع برای استخراج ایمیل از localStorage
+function getCurrentUserEmail() {
+    try {
+        const userData = JSON.parse(localStorage.getItem('sodmaxUserData') || '{}');
+        return userData.email || null;
+    } catch (error) {
+        console.error('خطا در دریافت ایمیل کاربر:', error);
+        return null;
+    }
+}
+
+// تابع برای دریافت داده‌های کاربر
+function getCurrentUserData() {
+    try {
+        const userData = JSON.parse(localStorage.getItem('sodmaxUserData') || '{}');
+        return userData;
+    } catch (error) {
+        console.error('خطا در دریافت داده‌های کاربر:', error);
+        return {};
+    }
+}
+
 // ==================== راه‌اندازی ====================
 
 // وقتی DOM بارگذاری شد
@@ -295,7 +319,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // اگر کاربری لاگین کرده، سینک کن
                 const userData = JSON.parse(localStorage.getItem('sodmaxUserData') || '{}');
                 if (userData.email) {
-                    setTimeout(syncWithSupabase, 2000);
+                    setTimeout(() => syncWithSupabase(userData.email), 2000);
                 }
             });
         }
@@ -303,3 +327,13 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 console.log('✅ app-core.js با پشتیبانی Supabase بارگذاری شد');
+
+// اکسپورت توابع برای استفاده
+window.SODmaxAPI = {
+    saveGameDataForAdmin,
+    syncWithSupabase,
+    manualSave,
+    startAutoSync,
+    getCurrentUserEmail,
+    getCurrentUserData
+};
