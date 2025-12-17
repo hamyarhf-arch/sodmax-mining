@@ -2420,11 +2420,203 @@ document.addEventListener('DOMContentLoaded', function() {
     // یا مستقیماً اینجا صدا بزنید:
     setTimeout(initSupabase, 1000);
 });
+     // ==================== سیستم یکپارچه ====================
+
+// مدیریت‌کننده وضعیت
+const stateManager = new GameStateManager();
+
+// تابع لاگین یکپارچه
+async function unifiedLogin() {
+    const email = document.getElementById('authEmail').value;
+    const password = document.getElementById('authPassword').value;
+    
+    if (!email || !password) {
+        showNotification('خطا', 'لطفاً ایمیل و رمز عبور را وارد کنید');
+        return;
+    }
+    
+    try {
+        // 1. سعی کن با Supabase لاگین کنی
+        if (window.supabaseClient) {
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
+                email: email,
+                password: password
+            });
+            
+            if (!error && data.user) {
+                // موفقیت‌آمیز بود
+                stateManager.state.user = data.user;
+                stateManager.state.useSupabase = true;
+                
+                // بارگذاری اطلاعات
+                const gameData = await stateManager.loadGameData();
+                gameDataInstance = gameData;
+                
+                // نمایش صفحه اصلی
+                hideRegister();
+                updateUI();
+                
+                showNotification('خوش آمدید', 'ورود موفقیت‌آمیز بود!');
+                return;
+            }
+        }
+        
+        // 2. حالت آفلاین
+        console.log('⚠️ استفاده از حالت آفلاین');
+        
+        stateManager.state.user = {
+            id: 'offline_' + Date.now(),
+            email: email,
+            user_metadata: { full_name: email.split('@')[0] }
+        };
+        stateManager.state.useSupabase = false;
+        
+        // بارگذاری یا ایجاد داده
+        let gameData = await stateManager.loadGameData();
+        if (!gameData.sod_balance) {
+            gameData = stateManager.getDefaultGameData();
+            await stateManager.saveGameData(gameData);
+        }
+        
+        gameDataInstance = gameData;
+        
+        hideRegister();
+        updateUI();
+        showNotification('خوش آمدید (آفلاین)', 'سیستم در حالت آفلاین فعال است');
+        
+    } catch (error) {
+        console.error('❌ خطا در لاگین:', error);
+        showNotification('خطا', 'مشکلی در ورود پیش آمد');
+    }
+}
+
+// تابع ثبت‌نام یکپارچه
+async function unifiedRegister() {
+    const email = document.getElementById('authEmail').value;
+    const password = document.getElementById('authPassword').value;
+    
+    if (!email || !password) {
+        showNotification('خطا', 'لطفاً ایمیل و رمز عبور را وارد کنید');
+        return;
+    }
+    
+    try {
+        // 1. ثبت‌نام در Supabase
+        if (window.supabaseClient) {
+            const { data, error } = await supabaseClient.auth.signUp({
+                email: email,
+                password: password,
+                options: {
+                    data: {
+                        full_name: email.split('@')[0]
+                    }
+                }
+            });
+            
+            if (!error && data.user) {
+                showNotification('ثبت‌نام موفق', 'حساب شما در Supabase ایجاد شد!');
+                
+                // ایجاد رکورد کاربر در جدول users
+                if (window.GameDB) {
+                    await window.GameDB.getOrCreateUser(data.user.id, email);
+                }
+                
+                return;
+            }
+        }
+        
+        // 2. حالت آفلاین
+        stateManager.state.user = {
+            id: 'new_offline_' + Date.now(),
+            email: email,
+            user_metadata: { full_name: email.split('@')[0] }
+        };
+        
+        // ایجاد داده اولیه
+        const defaultData = stateManager.getDefaultGameData();
+        await stateManager.saveGameData(defaultData);
+        
+        gameDataInstance = defaultData;
+        
+        showNotification('ثبت‌نام موفق (آفلاین)', 'حساب شما ایجاد شد!');
+        
+        // ورود خودکار
+        hideRegister();
+        updateUI();
+        
+    } catch (error) {
+        console.error('❌ خطا در ثبت‌نام:', error);
+        showNotification('خطا', 'مشکلی در ثبت‌نام پیش آمد');
+    }
+}
+
+// تابع استخراج یکپارچه
+async function unifiedMine() {
+    if (!gameDataInstance) {
+        showNotification('خطا', 'لطفاً ابتدا وارد شوید');
+        return;
+    }
+    
+    const earned = gameDataInstance.miningPower || 10;
+    const boostMultiplier = gameDataInstance.boostActive ? 3 : 1;
+    const totalEarned = earned * boostMultiplier;
+    
+    // بروزرسانی
+    gameDataInstance.sodBalance += totalEarned;
+    gameDataInstance.totalMined += totalEarned;
+    gameDataInstance.todayEarnings += totalEarned;
+    gameDataInstance.usdtProgress += totalEarned;
+    
+    // ذخیره
+    await stateManager.saveGameData(gameDataInstance);
+    
+    // بروزرسانی UI
+    updateUI();
+    
+    // افکت
+    createMiningEffect(totalEarned);
+    
+    // بررسی پاداش USDT
+    checkUSDT();
+}
+
+// ==================== راه‌اندازی ====================
+
+// جایگزین کردن توابع قبلی
+window.loginUser = unifiedLogin;
+window.registerUser = unifiedRegister;
+
+// راه‌اندازی اولیه
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🚀 راه‌اندازی سیستم یکپارچه...');
+    
+    // مقداردهی اولیه state manager
+    await stateManager.init();
+    
+    // اگر کاربر لاگین کرده
+    if (stateManager.state.user) {
+        // بارگذاری اطلاعات
+        gameDataInstance = await stateManager.loadGameData();
+        
+        // نمایش صفحه اصلی
+        hideRegister();
+        updateUI();
+        
+        // چک ادمین
+        checkAdminAccess();
+    } else {
+        // نمایش صفحه لاگین
+        showRegister();
+    }
+    
+    console.log('✅ سیستم یکپارچه راه‌اندازی شد');
+});
     </script>
 <script src="supabase-config.js"></script>
 <script src="app-core.js"></script>
 </body>
 </html>
+
 
 
 
