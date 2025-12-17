@@ -2614,8 +2614,144 @@ document.addEventListener('DOMContentLoaded', async () => {
     </script>
 <script src="supabase-config.js"></script>
 <script src="app-core.js"></script>
+ <script>
+// ==================== سیستم ثبت‌نام/لاگین ====================
+
+// تابع ثبت‌نام
+async function registerUser() {
+    const email = document.getElementById('authEmail').value;
+    const password = document.getElementById('authPassword').value;
+    
+    if (!email || !password) {
+        showNotification('خطا', 'لطفاً ایمیل و رمز عبور را وارد کنید');
+        return;
+    }
+    
+    try {
+        // ذخیره در localStorage (سیستم قدیم)
+        const userData = {
+            isRegistered: true,
+            email: email,
+            fullName: email.split('@')[0],
+            registerDate: new Date().toLocaleDateString('fa-IR')
+        };
+        localStorage.setItem('sodmaxUserData', JSON.stringify(userData));
+        
+        // ایجاد داده‌های بازی اولیه
+        const gameData = {
+            sodBalance: 1000000,
+            usdtBalance: 0,
+            userLevel: 1,
+            miningPower: 10,
+            totalMined: 1000000,
+            todayEarnings: 0,
+            usdtProgress: 0
+        };
+        localStorage.setItem('sodmaxGameData', JSON.stringify(gameData));
+        
+        // ایجاد رویداد برای app-core.js
+        window.dispatchEvent(new CustomEvent('userRegistered', {
+            detail: { email: email, fullName: email.split('@')[0] }
+        }));
+        
+        showNotification('ثبت‌نام موفق', 'حساب شما ایجاد شد! هدیه ۱ میلیون SOD دریافت کردید.');
+        
+        setTimeout(() => {
+            hideRegister();
+            if (typeof window.startGame === 'function') {
+                window.startGame();
+            }
+            updateUI();
+        }, 1500);
+        
+    } catch (error) {
+        console.error('خطا در ثبت‌نام:', error);
+        showNotification('خطا', 'مشکلی در ثبت‌نام پیش آمد');
+    }
+}
+
+// تابع لاگین
+async function loginUser() {
+    const email = document.getElementById('authEmail').value;
+    const password = document.getElementById('authPassword').value;
+    
+    if (!email || !password) {
+        showNotification('خطا', 'لطفاً ایمیل و رمز عبور را وارد کنید');
+        return;
+    }
+    
+    try {
+        // استفاده از سیستم Supabase
+        if (window.SupabaseConfig && window.SupabaseConfig.isInitialized()) {
+            const result = await window.SupabaseConfig.signIn(email, password);
+            
+            if (result.success) {
+                showNotification('خوش آمدید', 'با موفقیت وارد شدید!');
+                
+                // ذخیره در localStorage برای سازگاری
+                const userData = {
+                    isRegistered: true,
+                    email: email,
+                    fullName: result.user.user_metadata?.full_name || email.split('@')[0]
+                };
+                localStorage.setItem('sodmaxUserData', JSON.stringify(userData));
+                
+                hideRegister();
+                if (typeof window.startGame === 'function') {
+                    window.startGame();
+                }
+                return;
+            } else {
+                showNotification('خطا', result.message);
+                return;
+            }
+        }
+        
+        // اگر Supabase آماده نیست، از localStorage استفاده کن
+        const savedUser = localStorage.getItem('sodmaxUserData');
+        if (savedUser) {
+            const userData = JSON.parse(savedUser);
+            if (userData.email === email) {
+                showNotification('خوش آمدید', 'با موفقیت وارد شدید!');
+                hideRegister();
+                if (typeof window.startGame === 'function') {
+                    window.startGame();
+                }
+                return;
+            }
+        }
+        
+        showNotification('خطا', 'کاربر یافت نشد');
+        
+    } catch (error) {
+        console.error('خطا در لاگین:', error);
+        showNotification('خطا', 'مشکلی در ورود پیش آمد');
+    }
+}
+
+// مخفی کردن صفحه ثبت‌نام
+function hideRegister() {
+    document.getElementById('registerOverlay').style.display = 'none';
+    document.getElementById('mainContainer').style.display = 'block';
+}
+
+// نمایش صفحه ثبت‌نام
+function showRegister() {
+    document.getElementById('registerOverlay').style.display = 'flex';
+    document.getElementById('mainContainer').style.display = 'none';
+}
+
+// آپدیت UI
+function updateUI() {
+    // کد آپدیت UI شما
+    if (typeof window.updateUI === 'function') {
+        window.updateUI();
+    }
+}
+</script>
 </body>
 </html>
+
 
 
 
