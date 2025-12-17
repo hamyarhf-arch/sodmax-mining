@@ -1656,6 +1656,35 @@
             // سینک اولیه
             setTimeout(syncDataStructures, 1000);
         });
+        // در فایل admin.txt، تابع checkAccess را به این صورت به‌روزرسانی کنید:
+async function checkAccess() {
+    try {
+        // 1. چک Supabase
+        if (window.supabaseClient) {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session?.user?.email === ADMIN_SETTINGS.allowedEmail) {
+                showAdminPanel();
+                return;
+            }
+        }
+        
+        // 2. چک localStorage
+        const savedUser = JSON.parse(localStorage.getItem('sodmax_user') || '{}');
+        if (savedUser.email === ADMIN_SETTINGS.allowedEmail) {
+            document.getElementById('adminLogin').style.display = 'flex';
+            document.getElementById('adminEmail').value = savedUser.email;
+            return;
+        }
+        
+        // 3. دسترسی ممنوع
+        document.getElementById('accessDenied').style.display = 'flex';
+        
+    } catch (error) {
+        console.error('❌ خطا در بررسی دسترسی:', error);
+        document.getElementById('accessDenied').style.display = 'flex';
+    }
+}
     </script>
 </body>
+
 </html>
