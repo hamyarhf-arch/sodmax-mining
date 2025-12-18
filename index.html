@@ -2155,8 +2155,21 @@ const SUPABASE_KEY = 'YOUR_ANON_KEY';
 // متغیرهای جهانی
 let supabaseClient = null;
 let currentUser = null;
-let gameData = null;
-
+let gameDataInstance = {
+    sodBalance: 0,
+    usdtBalance: 0,
+    todayEarnings: 0,
+    miningPower: 10,
+    userLevel: 1,
+    usdtProgress: 0,
+    autoMining: false,
+    transactions: [],
+    boostActive: false,
+    boostEndTime: 0,
+    lastClaimTime: null,
+    totalMined: 0,
+    registerDate: new Date().toLocaleDateString('fa-IR')
+};
 // مقداردهی اولیه Supabase
 async function initSupabase() {
     try {
@@ -2800,6 +2813,7 @@ function updateUI() {
 </script>
 </body>
 </html>
+
 
 
 
