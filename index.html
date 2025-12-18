@@ -1609,8 +1609,22 @@
         }
 
         // ثبت نام فرم
-        document.getElementById('registerForm').addEventListener('submit', function(e) {
-            e.preventDefault();
+const registerForm = document.getElementById('registerForm');
+if (registerForm) {
+    registerForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const fullName = document.getElementById('fullName').value.trim();
+        const email = document.getElementById('email').value.trim();
+        
+        if (!fullName || !email) {
+            showNotification('خطا', 'لطفاً تمام فیلدها را پر کنید');
+            return;
+        }
+        
+        // بقیه کد ثبت نام...
+    });
+}            e.preventDefault();
             
             const fullName = document.getElementById('fullName').value.trim();
             const email = document.getElementById('email').value.trim();
@@ -2813,6 +2827,7 @@ function updateUI() {
 </script>
 </body>
 </html>
+
 
 
 
