@@ -1,3 +1,26 @@
+<script>
+// ==================== توابع کمکی ====================
+
+// تابع نمایش نوتیفیکیشن (اضافه کردن این تابع)
+function showNotification(title, message) {
+    try {
+        console.log('📢 ' + title + ':', message);
+        alert(title + ': ' + message);
+    } catch (error) {
+        console.error('خطا در نمایش نوتیفیکیشن:', error);
+    }
+}
+
+// تابع مخفی کردن ثبت نام (اگر وجود ندارد)
+function hideRegister() {
+    try {
+        document.getElementById('registerOverlay').style.display = 'none';
+        document.getElementById('mainContainer').style.display = 'block';
+    } catch (error) {
+        console.error('خطا در hideRegister:', error);
+    }
+}
+</script>
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
@@ -2826,6 +2849,7 @@ function updateUI() {
 </script>
 </body>
 </html>
+
 
 
 
