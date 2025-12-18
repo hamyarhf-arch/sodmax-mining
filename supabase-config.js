@@ -386,75 +386,47 @@ if (typeof window.SupabaseConfig !== 'undefined') {
         }
     }
 
-    // بروزرسانی آخرین لاگین
-    async function updateUserLastLogin(userId) {
-        try {
+    // بروزرسانی آخرین لاگین - نسخه ایمن
+async function updateUserLastLogin(userId) {
+    try {
+        // اول بررسی کن که آیا ستون last_login وجود دارد
+        const { error: checkError } = await supabaseClient
+            .from(SUPABASE_CONFIG.tables.users)
+            .select('last_login')
+            .eq('id', userId)
+            .limit(1);
+        
+        // اگر خطای "ستون پیدا نشد" نداد، آپدیت کن
+        if (!checkError || !checkError.message.includes('column')) {
             const { error } = await supabaseClient
                 .from(SUPABASE_CONFIG.tables.users)
                 .update({
-                    last_login: new Date().toISOString()
+                    last_login: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
                 })
                 .eq('id', userId);
             
-            if (error) {
+            if (error && !error.message.includes('column')) {
                 console.error('❌ خطا در بروزرسانی آخرین لاگین:', error.message);
+            } else if (!error) {
+                console.log('✅ آخرین لاگین بروزرسانی شد');
             }
+        } else {
+            console.log('⚠️ ستون last_login وجود ندارد، از updated_at استفاده می‌کنیم');
             
-        } catch (error) {
-            console.error('❌ خطا در بروزرسانی آخرین لاگین:', error);
+            // فقط updated_at را آپدیت کن
+            const { error } = await supabaseClient
+                .from(SUPABASE_CONFIG.tables.users)
+                .update({
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', userId);
         }
+        
+    } catch (error) {
+        console.error('❌ خطا در بروزرسانی آخرین لاگین:', error.message);
     }
-
-    // افزودن تراکنش
-    async function addTransaction(userId, description, amount, type = 'sod') {
-        try {
-            const transaction = {
-                user_id: userId,
-                description: description,
-                amount: amount,
-                type: type
-            };
-            
-            const { data, error } = await supabaseClient
-                .from(SUPABASE_CONFIG.tables.transactions)
-                .insert([transaction]);
-            
-            if (error) {
-                console.error('❌ خطا در ثبت تراکنش:', error.message);
-                throw error;
-            }
-            
-            console.log('✅ تراکنش ثبت شد:', description);
-            return transaction;
-            
-        } catch (error) {
-            console.error('❌ خطا در ثبت تراکنش:', error);
-            throw error;
-        }
-    }
-
-    // دریافت تراکنش‌ها
-    async function getTransactions(userId, limit = 20) {
-        try {
-            const { data, error } = await supabaseClient
-                .from(SUPABASE_CONFIG.tables.transactions)
-                .select('*')
-                .eq('user_id', userId)
-                .order('created_at', { ascending: false })
-                .limit(limit);
-            
-            if (error) {
-                console.error('❌ خطا در دریافت تراکنش‌ها:', error.message);
-                return [];
-            }
-            
-            return data || [];
-            
-        } catch (error) {
-            console.error('❌ خطا در دریافت تراکنش‌ها:', error);
-            return [];
-        }
-    }
+}
 
     // ==================== سیستم مدیریت ====================
 
@@ -553,3 +525,4 @@ if (typeof window.SupabaseConfig !== 'undefined') {
         await initializeSupabase();
     });
 }
+
