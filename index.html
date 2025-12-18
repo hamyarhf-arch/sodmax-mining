@@ -2381,34 +2381,83 @@ async function mineSOD() {
     }
 }
 
-// بررسی پاداش USDT
-async function checkUSDT() {
-    if (gameData.usdt_progress >= 10000000) {
-        const usdtEarned = 0.01;
-        
-        gameData.usdt_balance += usdtEarned;
-        gameData.usdt_progress -= 10000000;
-        
-        // آپدیت در دیتابیس
-        try {
-            const { error } = await supabaseClient
-                .from('game_data')
-                .update({
-                    usdt_balance: gameData.usdt_balance,
-                    usdt_progress: gameData.usdt_progress
-                })
-                .eq('user_id', currentUser.id);
+// تابع لاگین اصلاح شده
+async function loginUser() {
+    const email = document.getElementById('authEmail').value;
+    const password = document.getElementById('authPassword').value;
+    
+    if (!email || !password) {
+        showNotification('خطا', 'لطفاً ایمیل و رمز عبور را وارد کنید');
+        return;
+    }
+    
+    try {
+        // سعی کن با Supabase لاگین کنی
+        if (window.SupabaseConfig && window.SupabaseConfig.isInitialized()) {
+            const result = await window.SupabaseConfig.signIn(email, password);
             
-            if (error) throw error;
-            
-            showNotification('🎉 پاداش USDT', usdtEarned.toFixed(4) + ' USDT دریافت کردید!');
-            
-        } catch (error) {
-            console.error('خطا در ذخیره USDT:', error);
+            if (result.success) {
+                showNotification('خوش آمدید', 'با موفقیت وارد شدید!');
+                
+                // ذخیره در localStorage
+                const userData = {
+                    isRegistered: true,
+                    email: email,
+                    fullName: result.user.user_metadata?.full_name || email.split('@')[0]
+                };
+                localStorage.setItem('sodmaxUserData', JSON.stringify(userData));
+                
+                // بارگذاری اطلاعات بازی
+                const gameData = await window.SupabaseConfig.getGameData(result.user.id);
+                if (gameData) {
+                    const localGameData = {
+                        sodBalance: gameData.sod_balance,
+                        usdtBalance: gameData.usdt_balance,
+                        userLevel: gameData.user_level,
+                        miningPower: gameData.mining_power,
+                        totalMined: gameData.total_mined,
+                        todayEarnings: gameData.today_earnings,
+                        usdtProgress: gameData.usdt_progress,
+                        boostActive: gameData.boost_active,
+                        boostEndTime: gameData.boost_end_time
+                    };
+                    localStorage.setItem('sodmaxGameData', JSON.stringify(localGameData));
+                }
+                
+                // آپدیت UI
+                updateUI();
+                
+                // مخفی کردن صفحه ثبت‌نام
+                hideRegister();
+                
+                // شروع سینک خودکار
+                if (window.SODmaxCore) {
+                    window.SODmaxCore.startAutoSync();
+                }
+                
+                return;
+            }
         }
+        
+        // اگر Supabase کار نکرد، از localStorage استفاده کن
+        const savedUser = localStorage.getItem('sodmaxUserData');
+        if (savedUser) {
+            const userData = JSON.parse(savedUser);
+            if (userData.email === email) {
+                showNotification('خوش آمدید', 'با موفقیت وارد شدید!');
+                hideRegister();
+                updateUI();
+                return;
+            }
+        }
+        
+        showNotification('خطا', 'ایمیل یا رمز عبور اشتباه است');
+        
+    } catch (error) {
+        console.error('خطا در لاگین:', error);
+        showNotification('خطا', 'مشکلی در ورود پیش آمد');
     }
 }
-
 // راه‌اندازی
 document.addEventListener('DOMContentLoaded', function() {
     // اول سیستم اصلی خودتان راه‌اندازی شود
@@ -2751,6 +2800,7 @@ function updateUI() {
 </script>
 </body>
 </html>
+
 
 
 
