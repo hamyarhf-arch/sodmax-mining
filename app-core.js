@@ -1,264 +1,170 @@
-// app-core.js - نسخه اصلاح شده
-console.log('🚀 app-core.js با پشتیبانی Supabase بارگذاری شد');
+// app-core.js - نسخه ساده شده
+console.log('🚀 app-core.js بارگذاری شد');
 
-// ==================== توابع اصلی ====================
+// ==================== سیستم ذخیره‌سازی ====================
 
-// ذخیره‌سازی پیشرفته برای پنل مدیریت
-async function saveGameDataForAdmin() {
+// ذخیره در Supabase
+async function saveGameDataToSupabase() {
     try {
+        // چک کن که Supabase آماده باشد
         if (!window.SupabaseConfig || !window.SupabaseConfig.isInitialized()) {
-            console.log('⚠️ Supabase در دسترس نیست، ذخیره محلی');
-            saveToLocalStorage();
+            console.log('⚠️ Supabase آماده نیست');
             return false;
         }
         
-        const userData = JSON.parse(localStorage.getItem('sodmaxUserData') || '{}');
-        if (!userData || !userData.email) {
-            console.log('⚠️ اطلاعات کاربر یافت نشد');
-            return false;
-        }
-        
-        // بررسی کاربر جاری
+        // دریافت کاربر جاری
         const currentUser = window.SupabaseConfig.getCurrentUser();
         if (!currentUser) {
             console.log('⚠️ کاربر لاگین نکرده است');
             return false;
         }
         
-        // دریافت اطلاعات بازی
+        // دریافت اطلاعات از localStorage
         const gameData = JSON.parse(localStorage.getItem('sodmaxGameData') || '{}');
-        
-        // آپدیت اطلاعات کاربر
-        const { error: userError } = await window.supabaseClient
-            .from('users')
-            .update({
-                last_active: new Date().toISOString(),
-                level: gameData.userLevel || 1,
-                total_earned: gameData.totalMined || 0
-            })
-            .eq('id', currentUser.id);
-        
-        if (userError) {
-            console.error('❌ خطا در آپدیت کاربر:', userError);
-        }
-        
-        // آپدیت اطلاعات بازی
-        const { error: gameError } = await window.supabaseClient
-            .from('game_data')
-            .upsert({
-                user_id: currentUser.id,
-                sod_balance: gameData.sodBalance || 0,
-                usdt_balance: gameData.usdtBalance || 0,
-                user_level: gameData.userLevel || 1,
-                mining_power: gameData.miningPower || 10,
-                total_mined: gameData.totalMined || 0,
-                today_earnings: gameData.todayEarnings || 0,
-                usdt_progress: gameData.usdtProgress || 0,
-                boost_active: gameData.boostActive || false,
-                boost_end_time: gameData.boostEndTime || null,
-                updated_at: new Date().toISOString()
-            })
-            .eq('user_id', currentUser.id);
-        
-        if (gameError) {
-            console.error('❌ خطا در آپدیت بازی:', gameError);
+        if (!gameData) {
+            console.log('⚠️ اطلاعات بازی یافت نشد');
             return false;
         }
         
-        console.log('✅ داده‌ها در Supabase ذخیره شدند');
-        return true;
+        // آماده کردن داده‌ها برای Supabase
+        const gameDataForSupabase = {
+            user_id: currentUser.id,
+            sod_balance: gameData.sodBalance || 0,
+            usdt_balance: gameData.usdtBalance || 0,
+            user_level: gameData.userLevel || 1,
+            mining_power: gameData.miningPower || 10,
+            total_mined: gameData.totalMined || 0,
+            today_earnings: gameData.todayEarnings || 0,
+            usdt_progress: gameData.usdtProgress || 0,
+            boost_active: gameData.boostActive || false,
+            boost_end_time: gameData.boostEndTime || null
+        };
+        
+        // آپدیت در Supabase
+        const result = await window.SupabaseConfig.updateGameData(currentUser.id, gameDataForSupabase);
+        
+        if (result) {
+            console.log('✅ داده‌ها در Supabase ذخیره شدند');
+            return true;
+        } else {
+            console.log('⚠️ خطا در ذخیره Supabase');
+            return false;
+        }
         
     } catch (error) {
-        console.error('🚨 خطا در ذخیره‌سازی:', error);
-        saveToLocalStorage();
+        console.error('🚨 خطا در ذخیره‌سازی Supabase:', error);
         return false;
     }
 }
 
-// ذخیره در localStorage (فقط)
-function saveToLocalStorage() {
+// ذخیره در localStorage
+function saveGameDataToLocal() {
     try {
-        const gameData = JSON.parse(localStorage.getItem('sodmaxGameData') || '{}');
-        localStorage.setItem('sodmaxGameData', JSON.stringify(gameData));
-        console.log('📱 داده‌ها در localStorage ذخیره شد');
-    } catch (e) {
-        console.error('خطا در ذخیره localStorage:', e);
+        // این تابع توسط index.html پر می‌شود
+        console.log('📱 ذخیره در localStorage');
+    } catch (error) {
+        console.error('خطا در ذخیره localStorage:', error);
+    }
+}
+
+// ذخیره ترکیبی (هم Supabase هم localStorage)
+async function saveGameData() {
+    try {
+        // اول در localStorage ذخیره کن
+        saveGameDataToLocal();
+        
+        // سپس در Supabase ذخیره کن
+        await saveGameDataToSupabase();
+        
+        console.log('💾 داده‌ها ذخیره شدند');
+    } catch (error) {
+        console.error('خطا در ذخیره:', error);
+    }
+}
+
+// ==================== بارگذاری داده‌ها ====================
+
+// بارگذاری از Supabase
+async function loadGameDataFromSupabase() {
+    try {
+        if (!window.SupabaseConfig || !window.SupabaseConfig.isInitialized()) {
+            console.log('⚠️ Supabase آماده نیست');
+            return null;
+        }
+        
+        const currentUser = window.SupabaseConfig.getCurrentUser();
+        if (!currentUser) {
+            console.log('⚠️ کاربر لاگین نکرده است');
+            return null;
+        }
+        
+        // دریافت اطلاعات بازی از Supabase
+        const gameData = await window.SupabaseConfig.getGameData(currentUser.id);
+        
+        if (gameData) {
+            console.log('✅ اطلاعات بازی از Supabase بارگذاری شد');
+            
+            // تبدیل به فرمت مورد نظر
+            return {
+                sodBalance: gameData.sod_balance || 0,
+                usdtBalance: gameData.usdt_balance || 0,
+                userLevel: gameData.user_level || 1,
+                miningPower: gameData.mining_power || 10,
+                totalMined: gameData.total_mined || 0,
+                todayEarnings: gameData.today_earnings || 0,
+                usdtProgress: gameData.usdt_progress || 0,
+                boostActive: gameData.boost_active || false,
+                boostEndTime: gameData.boost_end_time || null
+            };
+        }
+        
+        return null;
+        
+    } catch (error) {
+        console.error('🚨 خطا در بارگذاری از Supabase:', error);
+        return null;
+    }
+}
+
+// ==================== سیستم سینک ====================
+
+// سینک خودکار
+let syncInterval = null;
+
+function startAutoSync() {
+    // اگر قبلاً فعال بود، متوقفش کن
+    if (syncInterval) {
+        clearInterval(syncInterval);
+    }
+    
+    // هر 60 ثانیه سینک کن
+    syncInterval = setInterval(async () => {
+        const userData = JSON.parse(localStorage.getItem('sodmaxUserData') || '{}');
+        if (userData && userData.email) {
+            await saveGameDataToSupabase();
+        }
+    }, 60000);
+    
+    console.log('🔄 سینک خودکار فعال شد (هر 60 ثانیه)');
+}
+
+function stopAutoSync() {
+    if (syncInterval) {
+        clearInterval(syncInterval);
+        syncInterval = null;
+        console.log('🛑 سینک خودکار متوقف شد');
     }
 }
 
 // ==================== مدیریت کاربران ====================
 
-// تابع ایجاد کاربر جدید در Supabase
-async function createUserRecord(email, name = '') {
-    try {
-        console.log('👤 تلاش برای ایجاد کاربر جدید:', email);
-        
-        if (!window.SupabaseConfig || !window.SupabaseConfig.isInitialized()) {
-            console.log('⚠️ Supabase آماده نیست، از حالت آفلاین استفاده می‌کنیم');
-            return null;
-        }
-        
-        // اول ثبت‌نام در Auth
-        const signUpResult = await window.SupabaseConfig.signUp(
-            email, 
-            'password123', // رمز ثابت برای کاربران آفلاین
-            name
-        );
-        
-        if (!signUpResult.success) {
-            console.log('⚠️ ثبت‌نام Auth ناموفق، تلاش برای ورود:', signUpResult.message);
-            
-            // اگر کاربر وجود دارد، وارد شو
-            const signInResult = await window.SupabaseConfig.signIn(email, 'password123');
-            if (!signInResult.success) {
-                console.error('❌ ورود هم ناموفق بود');
-                return null;
-            }
-            
-            return signInResult.user;
-        }
-        
-        console.log('✅ کاربر جدید در Supabase ایجاد شد');
-        return signUpResult.user;
-        
-    } catch (error) {
-        console.error('🚨 خطا در ایجاد کاربر:', error);
-        return null;
-    }
-}
-
-// دریافت کاربر بر اساس ایمیل
-async function getUserByEmail(email) {
-    try {
-        if (!window.supabaseClient) {
-            console.log('⚠️ Supabase client موجود نیست');
-            return null;
-        }
-        
-        const { data, error } = await window.supabaseClient
-            .from('users')
-            .select('*')
-            .eq('email', email)
-            .single();
-        
-        if (error) {
-            console.log('⚠️ خطا در دریافت کاربر:', error.message);
-            return null;
-        }
-        
-        return data;
-        
-    } catch (error) {
-        console.error('❌ خطا در دریافت کاربر:', error);
-        return null;
-    }
-}
-
-// ==================== سینک داده‌ها ====================
-
-// سینک خودکار داده‌ها با Supabase
-async function syncWithSupabase() {
-    try {
-        const userData = JSON.parse(localStorage.getItem('sodmaxUserData') || '{}');
-        if (!userData.email) {
-            console.log('⚠️ ایمیل کاربر یافت نشد');
-            return;
-        }
-        
-        console.log('🔄 سینک داده‌ها با Supabase برای:', userData.email);
-        
-        // اگر Supabase آماده نیست، صبر کن
-        if (!window.SupabaseConfig || !window.SupabaseConfig.isInitialized()) {
-            console.log('⏳ منتظر راه‌اندازی Supabase...');
-            setTimeout(syncWithSupabase, 5000);
-            return;
-        }
-        
-        // کاربر را در Supabase پیدا کن
-        let user = await getUserByEmail(userData.email);
-        
-        // اگر کاربر پیدا نشد، ایجاد کن
-        if (!user) {
-            console.log('👤 کاربر در Supabase پیدا نشد، ایجاد رکورد جدید...');
-            user = await createUserRecord(userData.email, userData.fullName || userData.email.split('@')[0]);
-        }
-        
-        if (user) {
-            // داده‌های بازی را سینک کن
-            await saveGameDataForAdmin();
-            console.log('✅ سینک کامل شد');
-        }
-        
-    } catch (error) {
-        console.error('⚠️ خطا در سینک:', error);
-    }
-}
-
-// ==================== رویدادهای سیستم ====================
-
-// ذخیره خودکار هر 30 ثانیه
-let syncInterval = null;
-function startAutoSync() {
-    if (syncInterval) clearInterval(syncInterval);
-    
-    syncInterval = setInterval(() => {
-        if (localStorage.getItem('sodmaxUserData')) {
-            syncWithSupabase();
-        }
-    }, 30000);
-    
-    console.log('🔄 سینک خودکار فعال شد (هر 30 ثانیه)');
-}
-
-// ذخیره دستی
-function manualSave() {
-    try {
-        // ذخیره در localStorage
-        saveToLocalStorage();
-        
-        // ذخیره در Supabase
-        syncWithSupabase();
-        
-        console.log('💾 ذخیره دستی انجام شد');
-    } catch (error) {
-        console.error('خطا در ذخیره دستی:', error);
-    }
-}
-
-// ==================== سازگاری با کد قبلی ====================
-
-// رپ کردن تابع saveGame اصلی
-if (typeof window.saveGame === 'function') {
-    const originalSaveGame = window.saveGame;
-    window.saveGame = function() {
-        if (originalSaveGame) originalSaveGame();
-        manualSave();
-    };
-} else {
-    window.saveGame = manualSave;
-}
-
-// رپ کردن تابع startGame
-if (typeof window.startGame === 'function') {
-    const originalStartGame = window.startGame;
-    window.startGame = function() {
-        if (originalStartGame) originalStartGame();
-        startAutoSync();
-        
-        // سینک اولیه بعد از 3 ثانیه
-        setTimeout(syncWithSupabase, 3000);
-    };
-}
-
-// ==================== رویدادهای ثبت‌نام ====================
-
-// رویداد برای وقتی کاربر ثبت‌نام می‌کند
+// وقتی کاربر ثبت‌نام می‌کند
 window.addEventListener('userRegistered', async function(e) {
     const { email, fullName } = e.detail;
     
     console.log('🎉 رویداد ثبت‌نام دریافت شد:', email);
     
-    // در localStorage ذخیره کن
+    // ذخیره در localStorage
     const userData = {
         isRegistered: true,
         email: email,
@@ -267,73 +173,82 @@ window.addEventListener('userRegistered', async function(e) {
     };
     localStorage.setItem('sodmaxUserData', JSON.stringify(userData));
     
-    // در Supabase ایجاد کن
-    setTimeout(async () => {
-        const result = await createUserRecord(email, fullName);
-        if (result) {
-            console.log('✅ کاربر در Supabase ثبت شد');
+    // اگر Supabase آماده است، کاربر را در آنجا هم ثبت کن
+    if (window.SupabaseConfig && window.SupabaseConfig.isInitialized()) {
+        try {
+            // از یک رمز ثابت استفاده می‌کنیم (در پروژه واقعی باید کاربر رمز وارد کند)
+            const result = await window.SupabaseConfig.signUp(email, 'DefaultPassword123', fullName);
+            
+            if (result.success) {
+                console.log('✅ کاربر در Supabase ثبت شد');
+            } else {
+                console.log('⚠️ خطا در ثبت Supabase:', result.message);
+            }
+        } catch (error) {
+            console.error('🚨 خطا در ثبت Supabase:', error);
         }
-    }, 1000);
+    }
 });
 
-// ==================== توابع کمکی ====================
-
-// تابع برای استخراج ایمیل از localStorage
-function getCurrentUserEmail() {
-    try {
-        const userData = JSON.parse(localStorage.getItem('sodmaxUserData') || '{}');
-        return userData.email || null;
-    } catch (error) {
-        console.error('خطا در دریافت ایمیل کاربر:', error);
-        return null;
+// وقتی کاربر لاگین می‌کند
+window.addEventListener('userLoggedIn', async function(e) {
+    const { email } = e.detail;
+    
+    console.log('🔑 رویداد لاگین دریافت شد:', email);
+    
+    // ذخیره در localStorage
+    const userData = {
+        isRegistered: true,
+        email: email
+    };
+    localStorage.setItem('sodmaxUserData', JSON.stringify(userData));
+    
+    // سعی کن از Supabase بارگذاری کنی
+    if (window.SupabaseConfig && window.SupabaseConfig.isInitialized()) {
+        const supabaseData = await loadGameDataFromSupabase();
+        if (supabaseData) {
+            // ذخیره در localStorage
+            localStorage.setItem('sodmaxGameData', JSON.stringify(supabaseData));
+            console.log('✅ اطلاعات از Supabase بارگذاری شد');
+        }
     }
-}
-
-// تابع برای دریافت داده‌های کاربر
-function getCurrentUserData() {
-    try {
-        const userData = JSON.parse(localStorage.getItem('sodmaxUserData') || '{}');
-        return userData;
-    } catch (error) {
-        console.error('خطا در دریافت داده‌های کاربر:', error);
-        return {};
-    }
-}
+});
 
 // ==================== راه‌اندازی ====================
 
-// وقتی DOM بارگذاری شد
+// وقتی صفحه بارگذاری شد
 document.addEventListener('DOMContentLoaded', function() {
     console.log('📄 app-core.js راه‌اندازی شد');
     
-    // منتظر بارگذاری Supabase-config.js باش
-    const checkSupabase = setInterval(() => {
-        if (window.SupabaseConfig) {
-            clearInterval(checkSupabase);
-            console.log('✅ SupabaseConfig پیدا شد');
+    // منتظر Supabase باش
+    const checkInterval = setInterval(() => {
+        if (window.SupabaseConfig && window.SupabaseConfig.isInitialized()) {
+            clearInterval(checkInterval);
+            console.log('✅ Supabase آماده است');
             
-            // راه‌اندازی Supabase
-            window.SupabaseConfig.init().then(() => {
-                console.log('🎮 سیستم آماده است');
+            // اگر کاربر لاگین کرده، سینک خودکار را شروع کن
+            const userData = JSON.parse(localStorage.getItem('sodmaxUserData') || '{}');
+            if (userData.email) {
+                startAutoSync();
                 
-                // اگر کاربری لاگین کرده، سینک کن
-                const userData = JSON.parse(localStorage.getItem('sodmaxUserData') || '{}');
-                if (userData.email) {
-                    setTimeout(() => syncWithSupabase(userData.email), 2000);
-                }
-            });
+                // یک بار هم الآن سینک کن
+                setTimeout(() => {
+                    saveGameDataToSupabase();
+                }, 3000);
+            }
         }
     }, 1000);
 });
 
-console.log('✅ app-core.js با پشتیبانی Supabase بارگذاری شد');
+// ==================== اکسپورت توابع ====================
 
-// اکسپورت توابع برای استفاده
-window.SODmaxAPI = {
-    saveGameDataForAdmin,
-    syncWithSupabase,
-    manualSave,
+window.SODmaxCore = {
+    saveGameData,
+    saveGameDataToSupabase,
+    saveGameDataToLocal,
+    loadGameDataFromSupabase,
     startAutoSync,
-    getCurrentUserEmail,
-    getCurrentUserData
+    stopAutoSync
 };
+
+console.log('✅ app-core.js بارگذاری کامل شد');
