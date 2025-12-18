@@ -1629,10 +1629,9 @@ if (registerForm) {
             const fullName = document.getElementById('fullName').value.trim();
             const email = document.getElementById('email').value.trim();
             
-            if (!fullName || !email) {
-                showNotification('خطا', 'لطفاً تمام فیلدها را پر کنید');
-                return;
-            }
+           if (condition) {
+    return;
+}
             
             // ذخیره اطلاعات کاربر
             userData.isRegistered = true;
@@ -2827,6 +2826,7 @@ function updateUI() {
 </script>
 </body>
 </html>
+
 
 
 
