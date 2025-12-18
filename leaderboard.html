@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لیدربرد - SODmAX Pro</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        /* استایل‌های اصلی شما */
+        :root {
+            --primary: #0066FF;
+            --secondary: #00D4AA;
+            --accent: #FF6B35;
+            --dark: #0A0F1C;
+            --card: #121828;
+            --text: #FFFFFF;
+            --text-secondary: #94A3B8;
+            --gradient: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            --gold: #FFD700;
+            --silver: #C0C0C0;
+            --bronze: #CD7F32;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0a0f1c 0%, #121828 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        nav a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            margin-right: 20px;
+            transition: 0.3s;
+        }
+
+        nav a:hover {
+            color: var(--primary);
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        /* استایل‌های لیدربرد */
+        .leaderboard-header {
+            text-align: center;
+            margin: 40px 0;
+        }
+
+        .leaderboard-header h1 {
+            font-size: 36px;
+            margin-bottom: 10px;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .time-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        .time-tab {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 12px 30px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.3s;
+            font-weight: 600;
+        }
+
+        .time-tab:hover {
+            background: rgba(0,102,255,0.2);
+        }
+
+        .time-tab.active {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .top-three {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 30px;
+            margin: 50px 0;
+            flex-wrap: wrap;
+        }
+
+        .top-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            border: 3px solid transparent;
+            min-width: 250px;
+            backdrop-filter: blur(10px);
+        }
+
+        .top-card.first {
+            border-color: var(--gold);
+            transform: scale(1.1);
+            order: 2;
+        }
+
+        .top-card.second {
+            border-color: var(--silver);
+            order: 1;
+        }
+
+        .top-card.third {
+            border-color: var(--bronze);
+            order: 3;
+        }
+
+        .rank-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .rank-1 .rank-icon { color: var(--gold); }
+        .rank-2 .rank-icon { color: var(--silver); }
+        .rank-3 .rank-icon { color: var(--bronze); }
+
+        .leaderboard-table {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            overflow: hidden;
+            margin-top: 40px;
+            backdrop-filter: blur(10px);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: rgba(0,102,255,0.3);
+            padding: 20px;
+            text-align: right;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 18px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        tr:hover {
+            background: rgba(0,102,255,0.1);
+        }
+
+        .user-rank {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .user-name {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-avatar {
+            width: 45px;
+            height: 45px;
+            background: var(--gradient);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .reward-badge {
+            background: linear-gradient(135deg, #FF6B35, #FFD166);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .current-user-row {
+            background: rgba(0,212,170,0.1) !important;
+            border-left: 4px solid var(--secondary);
+        }
+
+        @media (max-width: 768px) {
+            .top-three {
+                flex-direction: column;
+                align-items: center;
+                gap: 20px;
+            }
+            
+            .top-card {
+                width: 100%;
+                max-width: 300px;
+                transform: none !important;
+                order: 0 !important;
+            }
+            
+            .time-tabs {
+                gap: 10px;
+            }
+            
+            .time-tab {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+            
+            th, td {
+                padding: 12px 8px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">SODmAX Leaderboard</div>
+            <nav>
+                <a href="index.html"><i class="fas fa-gamepad"></i> بازی اصلی</a>
+                <a href="dashboard.html"><i class="fas fa-chart-line"></i> داشبورد</a>
+                <a href="missions.html"><i class="fas fa-tasks"></i> مأموریت‌ها</a>
+                <a href="admin.html" id="adminLink" style="display: none; background: rgba(148,163,184,0.3); padding: 6px 12px; border-radius: 6px;">
+                    <i class="fas fa-user-shield"></i> مدیریت
+                </a>
+                <button class="btn" onclick="goToGame()">بازگشت به بازی</button>
+            </nav>
+        </header>
+        
+        <div class="leaderboard-header">
+            <h1><i class="fas fa-trophy"></i> لیدربرد SODmAX</h1>
+            <p style="color: var(--text-secondary); font-size: 18px;">برترین استخراج‌کنندگان را ببینید و رقابت کنید!</p>
+        </div>
+        
+        <div class="time-tabs">
+            <div class="time-tab active" onclick="loadLeaderboard('daily')">
+                <i class="fas fa-calendar-day"></i> روزانه
+            </div>
+            <div class="time-tab" onclick="loadLeaderboard('weekly')">
+                <i class="fas fa-calendar-week"></i> هفتگی
+            </div>
+            <div class="time-tab" onclick="loadLeaderboard('monthly')">
+                <i class="fas fa-calendar-alt"></i> ماهانه
+            </div>
+        </div>
+        
+        <!-- سه نفر برتر -->
+        <div class="top-three">
+            <div class="top-card second rank-2">
+                <div class="rank-icon">🥈</div>
+                <h3>نفر دوم</h3>
+                <div style="font-size: 22px; font-weight: bold; margin: 15px 0;" id="top2Name">در حال بارگذاری...</div>
+                <div style="color: var(--silver); font-size: 20px;" id="top2Score">۰ SOD</div>
+                <div class="reward-badge" style="margin-top: 15px; background: linear-gradient(135deg, #C0C0C0, #E0E0E0);">
+                    جایزه: ۰.۰۰۵ USDT
+                </div>
+            </div>
+            
+            <div class="top-card first rank-1">
+                <div class="rank-icon">🥇</div>
+                <h3>نفر اول</h3>
+                <div style="font-size: 26px; font-weight: bold; margin: 15px 0;" id="top1Name">در حال بارگذاری...</div>
+                <div style="color: var(--gold); font-size: 24px;" id="top1Score">۰ SOD</div>
+                <div class="reward-badge" style="margin-top: 15px; background: linear-gradient(135deg, #FFD700, #FFED4E);">
+                    جایزه: ۰.۰۱ USDT
+                </div>
+            </div>
+            
+            <div class="top-card third rank-3">
+                <div class="rank-icon">🥉</div>
+                <h3>نفر سوم</h3>
+                <div style="font-size: 20px; font-weight: bold; margin: 15px 0;" id="top3Name">در حال بارگذاری...</div>
+                <div style="color: var(--bronze); font-size: 18px;" id="top3Score">۰ SOD</div>
+                <div class="reward-badge" style="margin-top: 15px; background: linear-gradient(135deg, #CD7F32, #FFA94D);">
+                    جایزه: ۰.۰۰۲ USDT
+                </div>
+            </div>
+        </div>
+        
+        <!-- جدول لیدربرد -->
+        <div class="leaderboard-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>رتبه</th>
+                        <th>کاربر</th>
+                        <th>استخراج امروز</th>
+                        <th>استخراج کل</th>
+                        <th>سطح</th>
+                        <th>پاداش</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboardBody">
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 40px;">
+                            <div style="color: var(--text-secondary);">در حال بارگذاری لیدربرد...</div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- اطلاعات پایین صفحه -->
+        <div style="text-align: center; margin: 40px 0; color: var(--text-secondary);">
+            <p><i class="fas fa-clock"></i> رتبه‌بندی هر ۱ ساعت به‌روزرسانی می‌شود</p>
+            <p><i class="fas fa-gift"></i> جوایز هر شب ساعت ۲۴ پرداخت می‌شوند</p>
+            <p style="margin-top: 20px; font-size: 14px;" id="currentUserRank">
+                رتبه شما: در حال محاسبه...
+            </p>
+        </div>
+    </div>
+
+    <script src="supabase-config.js"></script>
+    <script>
+        let currentUser = null;
+        let currentTimeframe = 'daily';
+        let leaderboardData = [];
+
+        // چک لاگین و بارگذاری
+        async function init() {
+            await checkAuth();
+            await loadLeaderboard('daily');
+            startAutoRefresh();
+        }
+
+        // چک authentication
+        async function checkAuth() {
+            try {
+                const { data: { session } } = await window.supabaseClient.auth.getSession();
+                
+                if (!session) {
+                    window.location.href = 'index.html';
+                    return;
+                }
+                
+                currentUser = session.user;
+                checkAdminAccess();
+                
+            } catch (error) {
+                console.error('Auth error:', error);
+                window.location.href = 'index.html';
+            }
+        }
+
+        // بارگذاری لیدربرد
+        async function loadLeaderboard(timeframe) {
+            try {
+                // آپدیت تب فعال
+                updateActiveTab(timeframe);
+                currentTimeframe = timeframe;
+                
+                // نمایش loading
+                document.getElementById('leaderboardBody').innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 40px;">
+                            <div style="color: var(--text-secondary);">
+                                <i class="fas fa-spinner fa-spin"></i> در حال بارگذاری...
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                
+                // دریافت داده‌ها از دیتابیس
+                const { data, error } = await window.GameDB.getLeaderboard(timeframe, 20);
+                
+                if (error) {
+                    console.error('Error loading leaderboard:', error);
+                    showError('خطا در بارگذاری لیدربرد');
+                    return;
+                }
+                
+                leaderboardData = data || [];
+                
+                // نمایش داده‌ها
+                displayLeaderboard(leaderboardData);
+                
+                // نمایش رتبه کاربر فعلی
+                displayCurrentUserRank();
+                
+            } catch (error) {
+                console.error('Error in loadLeaderboard:', error);
+                showError('خطا در بارگذاری داده‌ها');
+            }
+        }
+
+        // نمایش لیدربرد
+        function displayLeaderboard(data) {
+            if (!data || data.length === 0) {
+                document.getElementById('leaderboardBody').innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                            هنوز داده‌ای برای نمایش وجود ندارد
+                        </td>
+                    </tr>
+                `;
+                
+                // پاک کردن سه نفر برتر
+                document.getElementById('top1Name').textContent = 'داده‌ای موجود نیست';
+                document.getElementById('top2Name').textContent = 'داده‌ای موجود نیست';
+                document.getElementById('top3Name').textContent = 'داده‌ای موجود نیست';
+                
+                return;
+            }
+            
+            // آپدیت سه نفر برتر
+            updateTopThree(data.slice(0, 3));
+            
+            // ساخت جدول
+            let tableHTML = '';
+            
+            data.forEach((item, index) => {
+                const rank = index + 1;
+                const user = item.users;
+                const game = item;
+                
+                // چک کردن آیا این کاربر فعلی است
+                const isCurrentUser = currentUser && user.email === currentUser.email;
+                const rowClass = isCurrentUser ? 'current-user-row' : '';
+                
+                // آیکون رتبه
+                let rankIcon = rank.toString();
+                if (rank === 1) rankIcon = '🥇';
+                else if (rank === 2) rankIcon = '🥈';
+                else if (rank === 3) rankIcon = '🥉';
+                else if (rank <= 10) rankIcon = '🏅';
+                
+                // پاداش بر اساس رتبه
+                const reward = getRewardForRank(rank);
+                
+                // مقدار نمایشی بر اساس timeframe
+                const displayValue = currentTimeframe === 'daily' ? game.today_earnings : game.total_mined;
+                
+                tableHTML += `
+                    <tr class="${rowClass}">
+                        <td>
+                            <span class="user-rank" style="color: ${getRankColor(rank)}">
+                                ${rankIcon}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="user-name">
+                                <div class="user-avatar" style="background: ${getAvatarColor(rank)}">
+                                    ${user.full_name ? user.full_name.charAt(0) : user.email.charAt(0)}
+                                </div>
+                                <div>
+                                    <div style="font-weight: bold;">${user.full_name || user.email}</div>
+                                    ${isCurrentUser ? '<div style="font-size: 12px; color: var(--secondary);">(شما)</div>' : ''}
+                                </div>
+                            </div>
+                        </td>
+                        <td><strong>${formatNumber(game.today_earnings)} SOD</strong></td>
+                        <td>${formatNumber(game.total_mined)} SOD</td>
+                        <td>
+                            <span style="background: ${getLevelColor(game.user_level)}; padding: 5px 12px; border-radius: 12px; font-weight: bold;">
+                                ${game.user_level}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="reward-badge" style="${getRewardStyle(rank)}">
+                                ${reward}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            document.getElementById('leaderboardBody').innerHTML = tableHTML;
+        }
+
+        // آپدیت سه نفر برتر
+        function updateTopThree(topUsers) {
+            if (topUsers[0]) {
+                const user1 = topUsers[0].users;
+                document.getElementById('top1Name').textContent = user1.full_name || user1.email;
+                document.getElementById('top1Score').textContent = formatNumber(topUsers[0].today_earnings) + ' SOD';
+            }
+            
+            if (topUsers[1]) {
+                const user2 = topUsers[1].users;
+                document.getElementById('top2Name').textContent = user2.full_name || user2.email;
+                document.getElementById('top2Score').textContent = formatNumber(topUsers[1].today_earnings) + ' SOD';
+            }
+            
+            if (topUsers[2]) {
+                const user3 = topUsers[2].users;
+                document.getElementById('top3Name').textContent = user3.full_name || user3.email;
+                document.getElementById('top3Score').textContent = formatNumber(topUsers[2].today_earnings) + ' SOD';
+            }
+        }
+
+        // نمایش رتبه کاربر فعلی
+        function displayCurrentUserRank() {
+            if (!currentUser || !leaderboardData.length) {
+                document.getElementById('currentUserRank').innerHTML = 
+                    '<span style="color: var(--text-secondary);">برای دیدن رتبه خود وارد شوید</span>';
+                return;
+            }
+            
+            const userIndex = leaderboardData.findIndex(item => 
+                item.users.email === currentUser.email
+            );
+            
+            if (userIndex === -1) {
+                document.getElementById('currentUserRank').innerHTML = 
+                    '<span style="color: var(--text-secondary);">شما هنوز در لیست نیستید</span>';
+                return;
+            }
+            
+            const rank = userIndex + 1;
+            const userData = leaderboardData[userIndex];
+            const nextReward = getNextRewardInfo(rank);
+            
+            document.getElementById('currentUserRank').innerHTML = `
+                <span style="color: ${getRankColor(rank)}; font-weight: bold;">رتبه ${rank}</span>
+                <span style="color: var(--text-secondary);"> از ${leaderboardData.length} کاربر</span>
+                <br>
+                <span style="font-size: 13px; color: var(--text-secondary);">
+                    برای رسیدن به رتبه ${rank > 1 ? rank - 1 : 'اول'}، ${formatNumber(nextReward.needed)} SOD دیگر نیاز دارید
+                </span>
+            `;
+        }
+
+        // helper functions
+        function updateActiveTab(timeframe) {
+            document.querySelectorAll('.time-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+
+        function getRewardForRank(rank) {
+            switch(rank) {
+                case 1: return "۰.۰۱ USDT";
+                case 2: return "۰.۰۰۵ USDT";
+                case 3: return "۰.۰۰۲ USDT";
+                case 4: case 5: return "۱۰۰K SOD";
+                case 6: case 7: case 8: case 9: case 10: return "۵۰K SOD";
+                default: return "۱۰K SOD";
+            }
+        }
+
+        function getRewardStyle(rank) {
+            switch(rank) {
+                case 1: return "background: linear-gradient(135deg, #FFD700, #FFED4E);";
+                case 2: return "background: linear-gradient(135deg, #C0C0C0, #E0E0E0);";
+                case 3: return "background: linear-gradient(135deg, #CD7F32, #FFA94D);";
+                default: return "background: linear-gradient(135deg, var(--primary), var(--secondary));";
+            }
+        }
+
+        function getRankColor(rank) {
+            if (rank === 1) return 'var(--gold)';
+            if (rank === 2) return 'var(--silver)';
+            if (rank === 3) return 'var(--bronze)';
+            if (rank <= 10) return 'var(--secondary)';
+            return 'var(--text)';
+        }
+
+        function getAvatarColor(rank) {
+            if (rank === 1) return 'linear-gradient(135deg, #FFD700, #FFA500)';
+            if (rank === 2) return 'linear-gradient(135deg, #C0C0C0, #A0A0A0)';
+            if (rank === 3) return 'linear-gradient(135deg, #CD7F32, #A0522D)';
+            if (rank <= 10) return 'linear-gradient(135deg, var(--primary), var(--secondary))';
+            return 'linear-gradient(135deg, #666, #888)';
+        }
+
+        function getLevelColor(level) {
+            if (level >= 5) return 'var(--accent)';
+            if (level >= 3) return 'var(--secondary)';
+            return 'var(--primary)';
+        }
+
+        function getNextRewardInfo(currentRank) {
+            if (currentRank <= 1) return { needed: 0, nextRank: 1 };
+            
+            const currentUserData = leaderboardData[currentRank - 1];
+            const nextUserData = leaderboardData[currentRank - 2];
+            
+            const needed = nextUserData.today_earnings - currentUserData.today_earnings + 1000;
+            
+            return {
+                needed: needed > 0 ? needed : 1000,
+                nextRank: currentRank - 1
+            };
+        }
+
+        function formatNumber(num) {
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toLocaleString('fa-IR');
+        }
+
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.textContent = message;
+            errorDiv.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: var(--accent);
+                color: white;
+                padding: 15px 25px;
+                border-radius: 10px;
+                z-index: 1000;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            `;
+            document.body.appendChild(errorDiv);
+            setTimeout(() => errorDiv.remove(), 3000);
+        }
+
+        function checkAdminAccess() {
+            if (!currentUser) return;
+            
+            const adminEmails = ['hamyarhf@gmail.com', 'admin@example.com', 'test@example.com'];
+            if (adminEmails.includes(currentUser.email.toLowerCase())) {
+                document.getElementById('adminLink').style.display = 'flex';
+            }
+        }
+
+        function goToGame() {
+            window.location.href = 'index.html';
+        }
+
+        // Auto-refresh هر 2 دقیقه
+        function startAutoRefresh() {
+            setInterval(() => {
+                if (document.visibilityState === 'visible') {
+                    loadLeaderboard(currentTimeframe);
+                }
+            }, 120000); // 2 دقیقه
+        }
+
+        // راه‌اندازی
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
