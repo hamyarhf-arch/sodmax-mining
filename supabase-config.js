@@ -1,14 +1,14 @@
-// ==================== supabase-config.js ====================
-// فایل پیکربندی کامل برای اتصال به Supabase
+// supabase-config.js - نسخه نهایی
+console.log('🚀 بارگذاری پیکربندی Supabase...');
 
 // بررسی اینکه آیا قبلاً بارگذاری شده
-if (typeof window.SupabaseConfig !== 'undefined') {
+if (typeof window.supabaseConfigLoaded !== 'undefined') {
     console.log('⚠️ SupabaseConfig قبلاً بارگذاری شده است');
 } else {
-    console.log('🚀 بارگذاری پیکربندی Supabase...');
-
+    window.supabaseConfigLoaded = true;
+    
     // ==================== تنظیمات پروژه ====================
-    const SUPABASE_CONFIG = {
+    const SUPABASE_SETTINGS = {
         url: 'https://moattzdydyiqoftlgtmq.supabase.co',
         anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vYXR0emR5ZHlpcW9mdGxndG1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5ODgzNTAsImV4cCI6MjA4MTU2NDM1MH0.DaTbOXcDxqx5JKZ5LbNvT-k8hYcjgbwK6nEgXz9QRy8',
         
@@ -33,14 +33,14 @@ if (typeof window.SupabaseConfig !== 'undefined') {
     let isInitialized = false;
 
     // تابع راه‌اندازی اتصال
-    async function initializeSupabase() {
+    async function initSupabase() {
         try {
             console.log('🔗 شروع اتصال به Supabase...');
             
             // ایجاد کلاینت Supabase
             supabaseClient = window.supabase.createClient(
-                SUPABASE_CONFIG.url,
-                SUPABASE_CONFIG.anonKey,
+                SUPABASE_SETTINGS.url,
+                SUPABASE_SETTINGS.anonKey,
                 {
                     auth: {
                         autoRefreshToken: true,
@@ -55,13 +55,15 @@ if (typeof window.SupabaseConfig !== 'undefined') {
             console.log('✅ Supabase client ایجاد شد');
             
             // تست اتصال
-            const connected = await testConnection();
-            if (!connected) {
-                console.log('⚠️ اتصال به Supabase برقرار نیست. حالت آفلاین فعال می‌شود.');
+            const { data, error } = await supabaseClient.from('settings').select('count').limit(1);
+            if (error) {
+                console.warn('⚠️ تست اتصال با خطا:', error.message);
+            } else {
+                console.log('✅ اتصال به Supabase برقرار است');
             }
             
             // چک کردن session کاربر
-            await checkCurrentSession();
+            await checkUserSession();
             
             isInitialized = true;
             console.log('🎉 راه‌اندازی Supabase تکمیل شد');
@@ -74,27 +76,8 @@ if (typeof window.SupabaseConfig !== 'undefined') {
         }
     }
 
-    // تست اتصال به Supabase
-    async function testConnection() {
-        try {
-            const { data, error } = await supabaseClient.from('settings').select('count').limit(1);
-            
-            if (error) {
-                console.warn('⚠️ تست اتصال با خطا:', error.message);
-                return false;
-            }
-            
-            console.log('✅ اتصال به Supabase برقرار است');
-            return true;
-            
-        } catch (error) {
-            console.warn('⚠️ خطا در تست اتصال:', error.message);
-            return false;
-        }
-    }
-
-    // بررسی session فعلی کاربر
-    async function checkCurrentSession() {
+    // بررسی session کاربر
+    async function checkUserSession() {
         try {
             const { data: { session }, error } = await supabaseClient.auth.getSession();
             
@@ -106,10 +89,6 @@ if (typeof window.SupabaseConfig !== 'undefined') {
             if (session) {
                 currentUser = session.user;
                 console.log('👤 کاربر پیدا شد:', currentUser.email);
-                
-                // بروزرسانی آخرین لاگین
-                await updateUserLastLogin(currentUser.id);
-                
                 return currentUser;
             }
             
@@ -124,10 +103,10 @@ if (typeof window.SupabaseConfig !== 'undefined') {
 
     // ==================== مدیریت کاربران ====================
 
-    // ثبت‌نام کاربر جدید
-    async function signUpUser(email, password, fullName = null) {
+    // ثبت‌نام کاربر
+    async function registerUser(email, password, fullName = null) {
         try {
-            console.log(`📝 ثبت‌نام کاربر جدید: ${email}`);
+            console.log(`📝 ثبت‌نام کاربر: ${email}`);
             
             const { data, error } = await supabaseClient.auth.signUp({
                 email: email,
@@ -147,8 +126,8 @@ if (typeof window.SupabaseConfig !== 'undefined') {
             if (data.user) {
                 console.log('✅ کاربر ایجاد شد:', data.user.id);
                 
-                // ایجاد رکورد کاربر
-                await createUserRecord(data.user, fullName);
+                // ایجاد رکورد در جدول users
+                await createUser(data.user, fullName);
                 
                 return {
                     success: true,
@@ -172,104 +151,127 @@ if (typeof window.SupabaseConfig !== 'undefined') {
     }
 
     // ورود کاربر
-   // ایجاد رکورد کاربر - نسخه ایمن
-async function createUserRecord(user, fullName = null) {
-    try {
-        // فقط ستون‌هایی که حتماً وجود دارند
-        const userData = {
-            id: user.id,
-            email: user.email,
-            full_name: fullName || user.user_metadata?.full_name || user.email.split('@')[0],
-            register_date: new Date().toLocaleDateString('fa-IR'),
-            invite_code: 'INV' + Math.random().toString(36).substr(2, 8).toUpperCase(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        };
-        
-        // ستون اختیاری is_admin
-        if (SUPABASE_CONFIG.adminEmails.includes(user.email.toLowerCase())) {
-            userData.is_admin = true;
-        }
-        
-        // ستون اختیاری last_login
-        userData.last_login = new Date().toISOString();
-        
-        const { data, error } = await supabaseClient
-            .from(SUPABASE_CONFIG.tables.users)
-            .insert([userData]);
-        
-        if (error) {
-            console.error('❌ خطا در ایجاد رکورد کاربر:', error.message);
+    async function loginUser(email, password) {
+        try {
+            console.log(`🔑 ورود کاربر: ${email}`);
             
-            // اگر خطا به خاطر ستون اضافی است، بدون ستون‌های اختیاری دوباره امتحان کن
-            const simpleUserData = {
-                id: user.id,
-                email: user.email,
-                full_name: userData.full_name,
-                register_date: userData.register_date,
-                invite_code: userData.invite_code
-            };
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
+                email: email,
+                password: password
+            });
             
-            const { data: simpleData, error: simpleError } = await supabaseClient
-                .from(SUPABASE_CONFIG.tables.users)
-                .insert([simpleUserData]);
-            
-            if (simpleError) {
-                console.error('❌ خطا در ایجاد رکورد ساده کاربر:', simpleError.message);
-                throw simpleError;
+            if (error) {
+                console.error('❌ خطا در ورود:', error.message);
+                throw error;
             }
             
-            console.log('✅ رکورد ساده کاربر ایجاد شد:', user.id);
-            return simpleUserData;
+            if (data.user) {
+                currentUser = data.user;
+                console.log('✅ کاربر وارد شد:', currentUser.email);
+                
+                return {
+                    success: true,
+                    user: data.user,
+                    session: data.session,
+                    message: 'ورود موفقیت‌آمیز'
+                };
+            }
+            
+            return {
+                success: false,
+                message: 'خطا در ورود'
+            };
+            
+        } catch (error) {
+            console.error('❌ خطا در ورود:', error);
+            return {
+                success: false,
+                message: error.message || 'خطا در ورود'
+            };
         }
-        
-        console.log('✅ رکورد کاربر ایجاد شد:', user.id);
-        return userData;
-        
-    } catch (error) {
-        console.error('❌ خطا در ایجاد رکورد:', error);
-        throw error;
     }
-}
-    // ==================== مدیریت دیتابیس ====================
 
-    // ایجاد رکورد کاربر
-    async function createUserRecord(user, fullName = null) {
+    // خروج کاربر
+    async function logoutUser() {
+        try {
+            console.log('🚪 درخواست خروج کاربر...');
+            
+            const { error } = await supabaseClient.auth.signOut();
+            
+            if (error) {
+                console.error('❌ خطا در خروج:', error.message);
+                throw error;
+            }
+            
+            currentUser = null;
+            console.log('✅ کاربر با موفقیت خارج شد');
+            
+            return {
+                success: true,
+                message: 'خروج موفقیت‌آمیز'
+            };
+            
+        } catch (error) {
+            console.error('❌ خطا در خروج:', error);
+            return {
+                success: false,
+                message: error.message || 'خطا در خروج'
+            };
+        }
+    }
+
+    // ایجاد کاربر در جدول users
+    async function createUser(user, fullName = null) {
         try {
             const userData = {
                 id: user.id,
                 email: user.email,
                 full_name: fullName || user.user_metadata?.full_name || user.email.split('@')[0],
                 register_date: new Date().toLocaleDateString('fa-IR'),
-                last_login: new Date().toISOString(),
                 invite_code: 'INV' + Math.random().toString(36).substr(2, 8).toUpperCase(),
-                is_admin: SUPABASE_CONFIG.adminEmails.includes(user.email.toLowerCase()),
-                user_level: 1
+                is_admin: SUPABASE_SETTINGS.adminEmails.includes(user.email.toLowerCase())
             };
             
             const { data, error } = await supabaseClient
-                .from(SUPABASE_CONFIG.tables.users)
+                .from(SUPABASE_SETTINGS.tables.users)
                 .insert([userData]);
             
             if (error) {
-                console.error('❌ خطا در ایجاد رکورد کاربر:', error.message);
-                throw error;
+                console.error('❌ خطا در ایجاد کاربر:', error.message);
+                
+                // اگر خطا به خاطر ستون is_admin است، بدون آن امتحان کن
+                const simpleUserData = {
+                    id: user.id,
+                    email: user.email,
+                    full_name: userData.full_name,
+                    register_date: userData.register_date,
+                    invite_code: userData.invite_code
+                };
+                
+                const { error: simpleError } = await supabaseClient
+                    .from(SUPABASE_SETTINGS.tables.users)
+                    .insert([simpleUserData]);
+                
+                if (simpleError) {
+                    console.error('❌ خطا در ایجاد کاربر ساده:', simpleError.message);
+                    throw simpleError;
+                }
+                
+                console.log('✅ کاربر ساده ایجاد شد:', user.id);
+                return simpleUserData;
             }
             
-            // ایجاد رکورد اطلاعات بازی
-            await createGameDataRecord(user.id);
-            
-            console.log('✅ رکورد کاربر ایجاد شد:', user.id);
+            console.log('✅ کاربر ایجاد شد:', user.id);
             return userData;
             
         } catch (error) {
-            console.error('❌ خطا در ایجاد رکورد:', error);
+            console.error('❌ خطا در ایجاد کاربر:', error);
             throw error;
         }
     }
 
-    // ایجاد رکورد اطلاعات بازی
-    async function createGameDataRecord(userId) {
+    // ایجاد اطلاعات بازی
+    async function createGameInfo(userId) {
         try {
             const gameData = {
                 user_id: userId,
@@ -283,28 +285,28 @@ async function createUserRecord(user, fullName = null) {
             };
             
             const { data, error } = await supabaseClient
-                .from(SUPABASE_CONFIG.tables.game_data)
+                .from(SUPABASE_SETTINGS.tables.game_data)
                 .insert([gameData]);
             
             if (error) {
-                console.error('❌ خطا در ایجاد رکورد بازی:', error.message);
+                console.error('❌ خطا در ایجاد اطلاعات بازی:', error.message);
                 throw error;
             }
             
-            console.log('✅ رکورد بازی ایجاد شد برای کاربر:', userId);
+            console.log('✅ اطلاعات بازی ایجاد شد برای کاربر:', userId);
             return gameData;
             
         } catch (error) {
-            console.error('❌ خطا در ایجاد رکورد بازی:', error);
+            console.error('❌ خطا در ایجاد اطلاعات بازی:', error);
             throw error;
         }
     }
 
     // دریافت اطلاعات کاربر
-    async function getUserData(userId) {
+    async function getUserInfo(userId) {
         try {
             const { data, error } = await supabaseClient
-                .from(SUPABASE_CONFIG.tables.users)
+                .from(SUPABASE_SETTINGS.tables.users)
                 .select('*')
                 .eq('id', userId)
                 .single();
@@ -323,10 +325,10 @@ async function createUserRecord(user, fullName = null) {
     }
 
     // دریافت اطلاعات بازی
-    async function getGameData(userId) {
+    async function getGameInfo(userId) {
         try {
             const { data, error } = await supabaseClient
-                .from(SUPABASE_CONFIG.tables.game_data)
+                .from(SUPABASE_SETTINGS.tables.game_data)
                 .select('*')
                 .eq('user_id', userId)
                 .single();
@@ -345,10 +347,10 @@ async function createUserRecord(user, fullName = null) {
     }
 
     // بروزرسانی اطلاعات بازی
-    async function updateGameData(userId, updates) {
+    async function updateGameInfo(userId, updates) {
         try {
             const { data, error } = await supabaseClient
-                .from(SUPABASE_CONFIG.tables.game_data)
+                .from(SUPABASE_SETTINGS.tables.game_data)
                 .update(updates)
                 .eq('user_id', userId)
                 .select();
@@ -367,144 +369,66 @@ async function createUserRecord(user, fullName = null) {
         }
     }
 
-    // بروزرسانی آخرین لاگین - نسخه ایمن
-async function updateUserLastLogin(userId) {
-    try {
-        // اول بررسی کن که آیا ستون last_login وجود دارد
-        const { error: checkError } = await supabaseClient
-            .from(SUPABASE_CONFIG.tables.users)
-            .select('last_login')
-            .eq('id', userId)
-            .limit(1);
-        
-        // اگر خطای "ستون پیدا نشد" نداد، آپدیت کن
-        if (!checkError || !checkError.message.includes('column')) {
-            const { error } = await supabaseClient
-                .from(SUPABASE_CONFIG.tables.users)
-                .update({
-                    last_login: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', userId);
-            
-            if (error && !error.message.includes('column')) {
-                console.error('❌ خطا در بروزرسانی آخرین لاگین:', error.message);
-            } else if (!error) {
-                console.log('✅ آخرین لاگین بروزرسانی شد');
-            }
-        } else {
-            console.log('⚠️ ستون last_login وجود ندارد، از updated_at استفاده می‌کنیم');
-            
-            // فقط updated_at را آپدیت کن
-            const { error } = await supabaseClient
-                .from(SUPABASE_CONFIG.tables.users)
-                .update({
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', userId);
-        }
-        
-    } catch (error) {
-        console.error('❌ خطا در بروزرسانی آخرین لاگین:', error.message);
-    }
-}
-
-    // ==================== سیستم مدیریت ====================
-
-    // بررسی اینکه آیا کاربر ادمین است
-    function isUserAdmin(email) {
-        if (!email) return false;
-        return SUPABASE_CONFIG.adminEmails.includes(email.toLowerCase());
-    }
-
-    // دریافت تمام کاربران (برای ادمین)
-    async function getAllUsers(limit = 50) {
+    // افزودن تراکنش
+    async function addNewTransaction(userId, description, amount, type = 'sod') {
         try {
+            const transaction = {
+                user_id: userId,
+                description: description,
+                amount: amount,
+                type: type
+            };
+            
             const { data, error } = await supabaseClient
-                .from(SUPABASE_CONFIG.tables.users)
-                .select('*, game_data(sod_balance, usdt_balance, total_mined)')
-                .order('register_date', { ascending: false })
-                .limit(limit);
+                .from(SUPABASE_SETTINGS.tables.transactions)
+                .insert([transaction]);
             
             if (error) {
-                console.error('❌ خطا در دریافت کاربران:', error.message);
-                return [];
+                console.error('❌ خطا در ثبت تراکنش:', error.message);
+                throw error;
             }
             
-            return data || [];
+            console.log('✅ تراکنش ثبت شد:', description);
+            return transaction;
             
         } catch (error) {
-            console.error('❌ خطا در دریافت کاربران:', error);
-            return [];
+            console.error('❌ خطا در ثبت تراکنش:', error);
+            throw error;
         }
     }
 
-    // آمار کلی سیستم
-    async function getSystemStats() {
-        try {
-            // تعداد کاربران
-            const { count: totalUsers } = await supabaseClient
-                .from(SUPABASE_CONFIG.tables.users)
-                .select('*', { count: 'exact', head: true });
-            
-            // مجموع SOD
-            const { data: sodData } = await supabaseClient
-                .from(SUPABASE_CONFIG.tables.game_data)
-                .select('sod_balance');
-            
-            let totalSOD = 0;
-            if (sodData) {
-                totalSOD = sodData.reduce((sum, item) => sum + (item.sod_balance || 0), 0);
-            }
-            
-            return {
-                total_users: totalUsers || 0,
-                total_sod: totalSOD,
-                today_users: 0
-            };
-            
-        } catch (error) {
-            console.error('❌ خطا در دریافت آمار سیستم:', error);
-            return {
-                total_users: 0,
-                total_sod: 0,
-                today_users: 0
-            };
-        }
+    // بررسی ادمین
+    function checkAdmin(email) {
+        if (!email) return false;
+        return SUPABASE_SETTINGS.adminEmails.includes(email.toLowerCase());
     }
 
     // ==================== اکسپورت ====================
 
-    // اکسپورت توابع برای استفاده
-    window.SupabaseConfig = {
-        init: initializeSupabase,
-        signUp: signUpUser,
-        signIn: signInUser,
-        signOut: signOutUser,
+    window.SupabaseManager = {
+        init: initSupabase,
+        register: registerUser,
+        login: loginUser,
+        logout: logoutUser,
         getCurrentUser: () => currentUser,
-        isAdmin: isUserAdmin,
+        isAdmin: checkAdmin,
         client: () => supabaseClient,
-        isInitialized: () => isInitialized,
+        isReady: () => isInitialized,
         
         // توابع دیتابیس
-        getUserData: getUserData,
-        getGameData: getGameData,
-        updateGameData: updateGameData,
-        addTransaction: addTransaction,
-        getTransactions: getTransactions,
-        
-        // توابع ادمین
-        getAllUsers: getAllUsers,
-        getSystemStats: getSystemStats
+        getUser: getUserInfo,
+        getGameData: getGameInfo,
+        updateGameData: updateGameInfo,
+        addTransaction: addNewTransaction,
+        createUserRecord: createUser,
+        createGameRecord: createGameInfo
     };
 
-    console.log('✅ فایل پیکربندی Supabase بارگذاری شد');
+    console.log('✅ پیکربندی Supabase بارگذاری شد');
 
     // راه‌اندازی خودکار
     document.addEventListener('DOMContentLoaded', async function() {
         console.log('📄 DOM آماده است، راه‌اندازی Supabase...');
-        await initializeSupabase();
+        await initSupabase();
     });
 }
-
-
