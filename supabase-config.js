@@ -172,84 +172,65 @@ if (typeof window.SupabaseConfig !== 'undefined') {
     }
 
     // ورود کاربر
-    async function signInUser(email, password) {
-        try {
-            console.log(`🔑 ورود کاربر: ${email}`);
-            
-            const { data, error } = await supabaseClient.auth.signInWithPassword({
-                email: email,
-                password: password
-            });
-            
-            if (error) {
-                console.error('❌ خطا در ورود:', error.message);
-                throw error;
-            }
-            
-            if (data.user) {
-                currentUser = data.user;
-                console.log('✅ کاربر وارد شد:', currentUser.email);
-                
-                // بروزرسانی آخرین لاگین
-                await updateUserLastLogin(currentUser.id);
-                
-                // ایجاد رکورد اگر وجود ندارد
-                const userExists = await getUserData(currentUser.id);
-                if (!userExists) {
-                    await createUserRecord(currentUser, currentUser.email.split('@')[0]);
-                }
-                
-                return {
-                    success: true,
-                    user: data.user,
-                    session: data.session,
-                    message: 'ورود موفقیت‌آمیز'
-                };
-            }
-            
-            return {
-                success: false,
-                message: 'خطا در ورود'
-            };
-            
-        } catch (error) {
-            console.error('❌ خطا در ورود:', error);
-            return {
-                success: false,
-                message: error.message || 'خطا در ورود'
-            };
+   // ایجاد رکورد کاربر - نسخه ایمن
+async function createUserRecord(user, fullName = null) {
+    try {
+        // فقط ستون‌هایی که حتماً وجود دارند
+        const userData = {
+            id: user.id,
+            email: user.email,
+            full_name: fullName || user.user_metadata?.full_name || user.email.split('@')[0],
+            register_date: new Date().toLocaleDateString('fa-IR'),
+            invite_code: 'INV' + Math.random().toString(36).substr(2, 8).toUpperCase(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+        
+        // ستون اختیاری is_admin
+        if (SUPABASE_CONFIG.adminEmails.includes(user.email.toLowerCase())) {
+            userData.is_admin = true;
         }
-    }
-
-    // خروج کاربر
-    async function signOutUser() {
-        try {
-            console.log('🚪 درخواست خروج کاربر...');
+        
+        // ستون اختیاری last_login
+        userData.last_login = new Date().toISOString();
+        
+        const { data, error } = await supabaseClient
+            .from(SUPABASE_CONFIG.tables.users)
+            .insert([userData]);
+        
+        if (error) {
+            console.error('❌ خطا در ایجاد رکورد کاربر:', error.message);
             
-            const { error } = await supabaseClient.auth.signOut();
+            // اگر خطا به خاطر ستون اضافی است، بدون ستون‌های اختیاری دوباره امتحان کن
+            const simpleUserData = {
+                id: user.id,
+                email: user.email,
+                full_name: userData.full_name,
+                register_date: userData.register_date,
+                invite_code: userData.invite_code
+            };
             
-            if (error) {
-                console.error('❌ خطا در خروج:', error.message);
-                throw error;
+            const { data: simpleData, error: simpleError } = await supabaseClient
+                .from(SUPABASE_CONFIG.tables.users)
+                .insert([simpleUserData]);
+            
+            if (simpleError) {
+                console.error('❌ خطا در ایجاد رکورد ساده کاربر:', simpleError.message);
+                throw simpleError;
             }
             
-            currentUser = null;
-            console.log('✅ کاربر با موفقیت خارج شد');
-            
-            return {
-                success: true,
-                message: 'خروج موفقیت‌آمیز'
-            };
-            
-        } catch (error) {
-            console.error('❌ خطا در خروج:', error);
-            return {
-                success: false,
-                message: error.message || 'خطا در خروج'
-            };
+            console.log('✅ رکورد ساده کاربر ایجاد شد:', user.id);
+            return simpleUserData;
         }
+        
+        console.log('✅ رکورد کاربر ایجاد شد:', user.id);
+        return userData;
+        
+    } catch (error) {
+        console.error('❌ خطا در ایجاد رکورد:', error);
+        throw error;
     }
-
+}
     // ==================== مدیریت دیتابیس ====================
 
     // ایجاد رکورد کاربر
@@ -525,4 +506,5 @@ async function updateUserLastLogin(userId) {
         await initializeSupabase();
     });
 }
+
 
